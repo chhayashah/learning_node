@@ -48,69 +48,58 @@ const express = require('express')
 
 const app = express();
 const db = require('./db');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
 
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 
 
 const Person = require('./models/person');
-const MenuItem = require('./models/MenuItem');
-app.get('/', function (req, res) {
+// const MenuItem = require('./models/MenuItem');
+
+// middleware function
+const logRequest = (req, res, next) => {
+    console.log(`${new Date().toLocaleString()} Request Made to : ${req.originalUrl}`);
+    next();
+}
+
+app.use(logRequest); //middleware
+
+
+passwport.use(new LocalStrategy(async (USERNAME, passport, done) => {
+    // authentication logic
+    try {
+        console.log('Received credentials:', USERNAME, passport);
+        const user =await Person.findOne({ username: USERNAME });
+        if (!user)
+            return done(null, false, { message: 'Incorrect username.' });
+
+        const isPassportMatch = user.passport === passport ? true : false;
+        if (isPassportMatch) {
+            return done(null, user);
+        } else {
+            return done(null, false, { message: 'Incorrect passport.' });
+        }
+    } catch (err) {
+        return done(err);
+    }
+}))
+
+const localAuthMiddleware=passport.authenticate('local',{session:false})
+
+app.get('/',localAuthMiddleware, function (req, res) {
     res.send("hello world");
 })
 
-// post route to add a person
-app.post('/person', async (req, res) => {
-    try{
-    const data = req.body;
 
-    const newPerson = new Person(data);
 
-    // newPerson.save((error, savedPerson) => {
-    //     if (error) {
-    //         console.log('error saving person:', error);
-    //         res.status(500).json({error:'Internal server error'})
-    //     } else {
-    //         console.log('data saved successfully');
-    //         res.status(200).json(savedPerson);
-    //     }
-    // })
 
-    // save the new person to the database
-    const response = await newPerson.save();
-    console.log('data saved');
-        res.status(200).json(response);
-    }
-    catch (err) {
-        console.log(err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-})
-
-app.post('/MenuItem', async (req, res) => {
-    try {
-        const data1 = req.body;
-        const newMenu = new MenuItem(data1);
-        const response1 = await newMenu.save();
-        console.log("menu data saved");
-        res.status(300).json(response1);
-        
-    } catch (err) {
-        console.log(err);
-        res.status(600).json({ error: 'Internal server error' });
-    }
-})
-
-app.get("/person", async(req, res) =>{
-    try {
-        const data = await personalbar.find();
-        console.log('data fetched');
-        res.status(200).json(data);
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-})
+// import the router files
+const personRoutes = require('./routes/personRoutes');
+const menuroutes = require('./routes/menuroutes');
+app.use('/person', personRoutes);
+app.use('/menu', menuroutes);
 
 app.listen(3000, () => {
     console.log('listening on port 3000');
